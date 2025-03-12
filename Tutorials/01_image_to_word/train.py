@@ -30,9 +30,29 @@ def read_annotation_file(annotation_path):
     dataset, vocab, max_len = [], set(), 0
     with open(annotation_path, "r") as f:
         for line in tqdm(f.readlines()):
-            line = line.split()
-            image_path = data_path + line[0][1:]
-            label = line[0].split("_")[1]
+            line = line.strip()
+            if not line:
+                continue
+            
+            parts = line.split()
+            if len(parts) < 1:
+                continue
+            
+            image_info = parts[0]
+            # Se você não tem nenhum '_' no nome, precisará adaptar
+            if "_" not in image_info:
+                continue
+
+            # Separa o label
+            image_parts = image_info.split("_")
+            if len(image_parts) < 2:
+                continue
+
+            # Em vez de line[0][1:], use:
+            # data_path + "/" + line[0], ou os.path.join(data_path, line[0])
+            image_path = os.path.join(data_path, image_info)
+            label = image_parts[1]
+
             dataset.append([image_path, label])
             vocab.update(list(label))
             max_len = max(max_len, len(label))
@@ -80,7 +100,7 @@ model = train_model(
 model.compile(
     optimizer=tf.keras.optimizers.Adam(learning_rate=configs.learning_rate), 
     loss=CTCloss(), 
-    metrics=[CWERMetric()],
+    #metrics=["accuracy"],
     run_eagerly=False
 )
 model.summary(line_length=110)
@@ -89,8 +109,8 @@ model.summary(line_length=110)
 os.makedirs(configs.model_path, exist_ok=True)
 
 # Define callbacks
-earlystopper = EarlyStopping(monitor="val_CER", patience=10, verbose=1)
-checkpoint = ModelCheckpoint(f"{configs.model_path}/model.h5", monitor="val_CER", verbose=1, save_best_only=True, mode="min")
+earlystopper = EarlyStopping(monitor="val_loss", patience=10, verbose=1)
+checkpoint = ModelCheckpoint(f"{configs.model_path}/model.h5", monitor="val_loss", verbose=1, save_best_only=True, mode="min")
 trainLogger = TrainLogger(configs.model_path)
 tb_callback = TensorBoard(f"{configs.model_path}/logs", update_freq=1)
 reduceLROnPlat = ReduceLROnPlateau(monitor="val_CER", factor=0.9, min_delta=1e-10, patience=5, verbose=1, mode="auto")
@@ -101,8 +121,8 @@ model.fit(
     train_data_provider,
     validation_data=val_data_provider,
     epochs=configs.train_epochs,
-    callbacks=[earlystopper, checkpoint, trainLogger, reduceLROnPlat, tb_callback, model2onnx],
-    workers=configs.train_workers
+    callbacks=[earlystopper, checkpoint, trainLogger, reduceLROnPlat, tb_callback]#, model2onnx]
+    #workers=configs.train_workers
 )
 
 # Save training and validation datasets as csv files
