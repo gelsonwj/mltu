@@ -121,7 +121,7 @@ model.fit(
     train_data_provider,
     validation_data=val_data_provider,
     epochs=configs.train_epochs,
-    callbacks=[earlystopper, checkpoint, trainLogger, reduceLROnPlat, tb_callback]#, model2onnx]
+    callbacks=[earlystopper, checkpoint, trainLogger, reduceLROnPlat, tb_callback, model2onnx]
     #workers=configs.train_workers
 )
 
